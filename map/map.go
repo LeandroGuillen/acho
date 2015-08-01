@@ -1,12 +1,5 @@
 package acho
 
-type Tile int
-
-const (
-	TileWater = iota
-	TileGround
-)
-
 type Map struct {
 	//IslandStyle string
 	Width  int
@@ -36,7 +29,7 @@ func NewMap(width, height int) *Map {
 	for i := 0; i < height; i++ {
 		m.Data[i] = make([]Tile, width)
 		for j := 0; j < width; j++ {
-			m.Data[i][j] = TileWater
+			m.Data[i][j] = Tile{TileWater}
 		}
 	}
 
@@ -49,4 +42,8 @@ func (m *Map) PopulateWithCountries(conf MapConfiguration) {
 	if conf.CountrySize == 1 {
 
 	}
+}
+
+func (m *Map) ToString() (s string) {
+	return ""
 }
