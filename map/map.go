@@ -44,6 +44,17 @@ func (m *Map) PopulateWithCountries(conf MapConfiguration) {
 	}
 }
 
+func (m *Map) SetTile(x, y int, t Tile) {
+	m.Data[x][y] = t
+}
+
 func (m *Map) ToString() (s string) {
-	return ""
+	s = ""
+	for i := 0; i < m.Height; i++ {
+		for j := 0; j < m.Width; j++ {
+			s += m.Data[i][j].ToString() + " "
+		}
+		s += "\n"
+	}
+	return
 }
