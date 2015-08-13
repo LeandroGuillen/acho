@@ -4,16 +4,19 @@ import (
 	"log"
 	"math"
 	"math/rand"
+	"strconv"
 	"time"
 )
 
+type Country struct {
+	Id        int
+	Adjacency []int
+}
+
 type Map struct {
-	//IslandStyle string
-	Width  int
-	Height int
-	Tiles  [][]Tile
-	Name   string
-	MapConfiguration
+	Name      string
+	Countries []Country
+	*MapConfiguration
 }
 
 type MapConfiguration struct {
@@ -29,132 +32,71 @@ type MapConfiguration struct {
 	Random                    *rand.Rand
 }
 
-func (m *Map) SetTile(x, y int, t Tile) {
-	m.Tiles[x][y] = t
-}
+func NewMap(conf *MapConfiguration) *Map {
+	seed := rand.NewSource(time.Now().UnixNano())
 
-func (m *Map) ToString() (s string) {
-	s = ""
-	for i := 0; i < m.Height; i++ {
-		for j := 0; j < m.Width; j++ {
-			s += m.Tiles[i][j].ToString() + " "
-		}
-		s += "\n"
-	}
-	return
-}
+	// Basic Values
+	m := Map{Name: "Unnamed map"}
+	m.MapConfiguration = conf
+	m.Random = rand.New(seed)
 
-func NewMap(width, height int) *Map {
-	m := Map{
-		Width:  width,
-		Height: height,
+	// Create all countries assigning an id
+	m.Countries = make([]Country, m.CountryCount)
+	for i := 0; i < m.CountryCount; i++ {
+		m.Countries[i] = Country{Id: i}
 	}
 
-	m.Tiles = make([][]Tile, height)
-	for i := 0; i < height; i++ {
-		m.Tiles[i] = make([]Tile, width)
-		for j := 0; j < width; j++ {
-			m.Tiles[i][j] = Tile{TileWater, 0}
+	for i := 0; i < (m.CountryCount/2)+1; i++ {
+		nConnections := m.Random.Intn(int(math.Max(float64(m.CountryCount)+2, 7))) + 2
+
+		m.Countries[i].Adjacency = make([]int, nConnections)
+		for j := 0; j < nConnections; j++ {
+			newC := m.Random.Intn(m.CountryCount)
+			m.Countries[i].Adjacency[j] = newC
 		}
 	}
 
-	m.Name = "Unnamed map"
+	m.cleanup()
+	// log.Println(m.Countries)
 
-	s1 := rand.NewSource(time.Now().UnixNano())
-	m.Random = rand.New(s1)
+	for i := 0; i < (m.CountryCount/2)+1; i++ {
+		for j := 0; j < len(m.Countries[i].Adjacency); j++ {
+			c := m.Countries[i].Adjacency[j]
+			m.Countries[c].Adjacency = append(m.Countries[c].Adjacency, i)
+		}
+	}
+
+	m.cleanup()
+
+	log.Println(m.Countries)
 
 	return &m
 }
 
-func (m *Map) PopulateWithCountries(conf MapConfiguration) {
+// Remove duplicated connections or connections to self
+func (m *Map) cleanup() {
+	for i := 0; i < len(m.Countries); i++ {
+		newAdj := make([]int, 0)
+		present := make([]bool, m.CountryCount)
+		for j, _ := range present {
+			present[j] = false
+		}
 
-	isPossible := true
-	for i := 0; i < m.CountryCount && isPossible; i++ {
-		isPossible = m.CreateCountry(m.CountrySize)
+		present[i] = true
+		for _, a := range m.Countries[i].Adjacency {
+			if !present[a] {
+				newAdj = append(newAdj, a)
+				present[a] = true
+			}
+		}
+
+		m.Countries[i].Adjacency = make([]int, len(newAdj))
+		for j := 0; j < len(newAdj); j++ {
+			m.Countries[i].Adjacency[j] = newAdj[j]
+		}
 	}
 }
 
-func (m *Map) RoomForCountry() bool {
-	return true
-}
-
-func (m *Map) CreateCountry(size int) bool {
-	found := false
-	coordx := m.Random.Intn(m.Width)
-	coordy := m.Random.Intn(m.Height)
-
-	// log.Printf("coordx=%d, coordy=%d", coordx, coordy)
-
-	countryWidth := int(math.Sqrt(float64(size)))
-	countryHeight := int(math.Sqrt(float64(size)))
-
-	// For now just traverse and look for water tiles
-	for i := 0; i < m.Height && !found; i++ {
-		for j := 0; j < m.Width && !found; j++ {
-			if m.Tiles[i][j].Type == TileWater {
-				found = true
-				coordx = i
-				coordy = j
-			}
-		}
-	}
-
-	// If not suitable place was found we can go
-	if !found {
-		return false
-	}
-
-	// We found water, so create a country
-	actualSize := size
-	// TODO Generate random country code
-
-	countryCode := 123
-	m.growCountry(countryCode, coordx, coordy, &actualSize)
-
-	// for i := coordx; i < m.Height && actualSize < size; i++ {
-	log.Println("Outer loop")
-	// 	for j := coordy; j < m.Width && actualSize < size; i++ {
-	// 		log.Println("Inner loop")
-	// 		m.Tiles[i][j] = Tile{TileGround}
-	// 		actualSize++
-	// 	}
-	// }
-
-	return true
-}
-
-func (m *Map) growCountry(code, x, y int, size *int) {
-	var currentTile Tile
-
-	m.Tiles[x][y] = Tile{Type: TileGround, CountryCode: code}
-	*size--
-	log.Println("size:", *size)
-	if *size > 0 {
-		// TODO The direction on which the country grows should be random
-
-		if x-1 > 0 {
-			currentTile = m.Tiles[x-1][y]
-			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
-				m.growCountry(code, x-1, y, size)
-			}
-		}
-		if y-1 > 0 {
-			currentTile = m.Tiles[x][y-1]
-			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
-				m.growCountry(code, x, y-1, size)
-			}
-		}
-		if x+1 < m.Width {
-			currentTile = m.Tiles[x+1][y]
-			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
-				m.growCountry(code, x+1, y, size)
-			}
-		}
-		if y+1 > m.Height {
-			currentTile = m.Tiles[x][y+1]
-			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
-				m.growCountry(code, x, y+1, size)
-			}
-		}
-	}
+func (m *Map) ToString() string {
+	return m.Name + " (" + strconv.Itoa(m.CountryCount) + " countries)"
 }
