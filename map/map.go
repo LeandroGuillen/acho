@@ -1,14 +1,23 @@
 package acho
 
+import (
+	"log"
+	"math"
+	"math/rand"
+	"time"
+)
+
 type Map struct {
 	//IslandStyle string
 	Width  int
 	Height int
-	Data   [][]Tile
+	Tiles  [][]Tile
 	Name   string
+	MapConfiguration
 }
 
 type MapConfiguration struct {
+	CountryCount              int
 	CountrySize               int
 	CountrySizeVariance       int
 	CountryBorderSoftness     float64
@@ -17,6 +26,22 @@ type MapConfiguration struct {
 	NeutralTroopPercentage    float64
 	WaterSize                 int
 	WaterSizeVariance         int
+	Random                    *rand.Rand
+}
+
+func (m *Map) SetTile(x, y int, t Tile) {
+	m.Tiles[x][y] = t
+}
+
+func (m *Map) ToString() (s string) {
+	s = ""
+	for i := 0; i < m.Height; i++ {
+		for j := 0; j < m.Width; j++ {
+			s += m.Tiles[i][j].ToString() + " "
+		}
+		s += "\n"
+	}
+	return
 }
 
 func NewMap(width, height int) *Map {
@@ -25,36 +50,111 @@ func NewMap(width, height int) *Map {
 		Height: height,
 	}
 
-	m.Data = make([][]Tile, height)
+	m.Tiles = make([][]Tile, height)
 	for i := 0; i < height; i++ {
-		m.Data[i] = make([]Tile, width)
+		m.Tiles[i] = make([]Tile, width)
 		for j := 0; j < width; j++ {
-			m.Data[i][j] = Tile{TileWater}
+			m.Tiles[i][j] = Tile{TileWater, 0}
 		}
 	}
 
 	m.Name = "Unnamed map"
 
+	s1 := rand.NewSource(time.Now().UnixNano())
+	m.Random = rand.New(s1)
+
 	return &m
 }
 
 func (m *Map) PopulateWithCountries(conf MapConfiguration) {
-	if conf.CountrySize == 1 {
 
+	isPossible := true
+	for i := 0; i < m.CountryCount && isPossible; i++ {
+		isPossible = m.CreateCountry(m.CountrySize)
 	}
 }
 
-func (m *Map) SetTile(x, y int, t Tile) {
-	m.Data[x][y] = t
+func (m *Map) RoomForCountry() bool {
+	return true
 }
 
-func (m *Map) ToString() (s string) {
-	s = ""
-	for i := 0; i < m.Height; i++ {
-		for j := 0; j < m.Width; j++ {
-			s += m.Data[i][j].ToString() + " "
+func (m *Map) CreateCountry(size int) bool {
+	found := false
+	coordx := m.Random.Intn(m.Width)
+	coordy := m.Random.Intn(m.Height)
+
+	// log.Printf("coordx=%d, coordy=%d", coordx, coordy)
+
+	countryWidth := int(math.Sqrt(float64(size)))
+	countryHeight := int(math.Sqrt(float64(size)))
+
+	// For now just traverse and look for water tiles
+	for i := 0; i < m.Height && !found; i++ {
+		for j := 0; j < m.Width && !found; j++ {
+			if m.Tiles[i][j].Type == TileWater {
+				found = true
+				coordx = i
+				coordy = j
+			}
 		}
-		s += "\n"
 	}
-	return
+
+	// If not suitable place was found we can go
+	if !found {
+		return false
+	}
+
+	// We found water, so create a country
+	actualSize := size
+	// TODO Generate random country code
+
+	countryCode := 123
+	m.growCountry(countryCode, coordx, coordy, &actualSize)
+
+	// for i := coordx; i < m.Height && actualSize < size; i++ {
+	log.Println("Outer loop")
+	// 	for j := coordy; j < m.Width && actualSize < size; i++ {
+	// 		log.Println("Inner loop")
+	// 		m.Tiles[i][j] = Tile{TileGround}
+	// 		actualSize++
+	// 	}
+	// }
+
+	return true
+}
+
+func (m *Map) growCountry(code, x, y int, size *int) {
+	var currentTile Tile
+
+	m.Tiles[x][y] = Tile{Type: TileGround, CountryCode: code}
+	*size--
+	log.Println("size:", *size)
+	if *size > 0 {
+		// TODO The direction on which the country grows should be random
+
+		if x-1 > 0 {
+			currentTile = m.Tiles[x-1][y]
+			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
+				m.growCountry(code, x-1, y, size)
+			}
+		}
+		if y-1 > 0 {
+			currentTile = m.Tiles[x][y-1]
+			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
+				m.growCountry(code, x, y-1, size)
+			}
+		}
+		if x+1 < m.Width {
+			currentTile = m.Tiles[x+1][y]
+			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
+				m.growCountry(code, x+1, y, size)
+			}
+		}
+		if y+1 > m.Height {
+			currentTile = m.Tiles[x][y+1]
+			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
+				m.growCountry(code, x, y+1, size)
+			}
+		}
+	}
 }

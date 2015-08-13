@@ -8,7 +8,8 @@ const (
 )
 
 type Tile struct {
-	Type TileType
+	Type        TileType
+	CountryCode int
 }
 
 func (t *Tile) ToString() (s string) {

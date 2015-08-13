@@ -6,6 +6,11 @@ import (
 )
 
 func main() {
-	m := acho.NewMap(3, 3)
-	fmt.Println(m.Data[1][1])
+	m := acho.NewMap(40, 10)
+
+	for i := 0; i < 1; i++ {
+		m.CreateCountry(6)
+	}
+
+	fmt.Println(m.ToString())
 }

@@ -18,6 +18,7 @@ func TestMapToString(t *testing.T) {
 	// Create NxM map
 	m := NewMap(3, 3)
 
+	// Put ground on some of them
 	m.SetTile(0, 1, Tile{TileGround})
 	m.SetTile(0, 2, Tile{TileGround})
 	m.SetTile(1, 1, Tile{TileGround})
