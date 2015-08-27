@@ -70,6 +70,13 @@ func NewMap(width, height int) *Map {
 	return &m
 }
 
+func (m *Map) GetRandomTile() (x, y int, t *Tile) {
+	x = m.Random.Intn(m.Height)
+	y = m.Random.Intn(m.Width)
+	t = &m.Tiles[x][y]
+	return
+}
+
 // Read a map from a CSV file
 func NewMapFromFile(filename string) (*Map, error) {
 	var content []byte

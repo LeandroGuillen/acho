@@ -6,6 +6,8 @@ import (
 )
 
 func main() {
+
+	// New map from CSV exercise
 	m, err := acho.NewMapFromFile("files/map.csv")
 
 	if err != nil {
@@ -14,6 +16,10 @@ func main() {
 	}
 
 	fmt.Println(m.ToString())
+
+	// Get random tile exercise
+	x, y, t := m.GetRandomTile()
+	fmt.Printf("Random country at (%d, %d): %s\n", x, y, t.ToString())
 
 	//generate()
 }
