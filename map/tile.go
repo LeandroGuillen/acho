@@ -1,5 +1,9 @@
 package acho
 
+import (
+	"strconv"
+)
+
 type TileType int
 
 const (
@@ -19,7 +23,7 @@ func (t *Tile) ToString() (s string) {
 		s = "~"
 		break
 	case TileGround:
-		s = "O"
+		s = strconv.Itoa(t.CountryCode)
 		break
 	default:
 		s = "?"

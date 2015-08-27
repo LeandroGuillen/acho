@@ -1,9 +1,11 @@
 package acho
 
 import (
-	"log"
-	"math"
+	"bytes"
+	"encoding/csv"
+	"io/ioutil"
 	"math/rand"
+	"strconv"
 	"time"
 )
 
@@ -44,6 +46,8 @@ func (m *Map) ToString() (s string) {
 	return
 }
 
+// Create a map in memory with the specified width and height.
+// The tiles are all set to empty
 func NewMap(width, height int) *Map {
 	m := Map{
 		Width:  width,
@@ -66,95 +70,49 @@ func NewMap(width, height int) *Map {
 	return &m
 }
 
-func (m *Map) PopulateWithCountries(conf MapConfiguration) {
+// Read a map from a CSV file
+func NewMapFromFile(filename string) (*Map, error) {
+	var content []byte
+	var err error
 
-	isPossible := true
-	for i := 0; i < m.CountryCount && isPossible; i++ {
-		isPossible = m.CreateCountry(m.CountrySize)
+	if content, err = ioutil.ReadFile(filename); err != nil {
+		return nil, err
 	}
-}
+	r := csv.NewReader(bytes.NewReader(content))
 
-func (m *Map) RoomForCountry() bool {
-	return true
-}
-
-func (m *Map) CreateCountry(size int) bool {
-	found := false
-	coordx := m.Random.Intn(m.Width)
-	coordy := m.Random.Intn(m.Height)
-
-	// log.Printf("coordx=%d, coordy=%d", coordx, coordy)
-
-	countryWidth := int(math.Sqrt(float64(size)))
-	countryHeight := int(math.Sqrt(float64(size)))
-
-	// For now just traverse and look for water tiles
-	for i := 0; i < m.Height && !found; i++ {
-		for j := 0; j < m.Width && !found; j++ {
-			if m.Tiles[i][j].Type == TileWater {
-				found = true
-				coordx = i
-				coordy = j
-			}
-		}
+	// Read the first line, it contains the height and width
+	record, err := r.Read()
+	if err != nil {
+		return nil, err
+	}
+	height, err := strconv.Atoi(record[0])
+	if err != nil {
+		return nil, err
+	}
+	width, err := strconv.Atoi(record[1])
+	if err != nil {
+		return nil, err
 	}
 
-	// If not suitable place was found we can go
-	if !found {
-		return false
+	// Reserve memory for our map
+	theMap := NewMap(width, height)
+
+	records, err := r.ReadAll()
+	if err != nil {
+		return nil, err
 	}
 
-	// We found water, so create a country
-	actualSize := size
-	// TODO Generate random country code
-
-	countryCode := 123
-	m.growCountry(countryCode, coordx, coordy, &actualSize)
-
-	// for i := coordx; i < m.Height && actualSize < size; i++ {
-	log.Println("Outer loop")
-	// 	for j := coordy; j < m.Width && actualSize < size; i++ {
-	// 		log.Println("Inner loop")
-	// 		m.Tiles[i][j] = Tile{TileGround}
-	// 		actualSize++
-	// 	}
-	// }
-
-	return true
-}
-
-func (m *Map) growCountry(code, x, y int, size *int) {
-	var currentTile Tile
-
-	m.Tiles[x][y] = Tile{Type: TileGround, CountryCode: code}
-	*size--
-	log.Println("size:", *size)
-	if *size > 0 {
-		// TODO The direction on which the country grows should be random
-
-		if x-1 > 0 {
-			currentTile = m.Tiles[x-1][y]
-			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
-				m.growCountry(code, x-1, y, size)
+	// Create individual tiles, assigns countryID to tiles
+	for i, row := range records {
+		for j, value := range row {
+			tileValue, err := strconv.Atoi(value)
+			if err != nil {
+				return nil, err
 			}
-		}
-		if y-1 > 0 {
-			currentTile = m.Tiles[x][y-1]
-			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
-				m.growCountry(code, x, y-1, size)
-			}
-		}
-		if x+1 < m.Width {
-			currentTile = m.Tiles[x+1][y]
-			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
-				m.growCountry(code, x+1, y, size)
-			}
-		}
-		if y+1 > m.Height {
-			currentTile = m.Tiles[x][y+1]
-			if currentTile.Type == TileWater || currentTile.CountryCode == 0 {
-				m.growCountry(code, x, y+1, size)
-			}
+			t := Tile{TileGround, tileValue}
+			theMap.SetTile(i, j, t)
 		}
 	}
+
+	return theMap, nil
 }
