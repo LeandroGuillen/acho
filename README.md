@@ -1,5 +1,7 @@
 # Acho
 
+A Risk-like country-conquering board game.
+
 ## Game flow
 Pseudo-code explaining the flow of the game.
 
